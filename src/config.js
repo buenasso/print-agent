@@ -1,0 +1,37 @@
+/**
+ * config.js
+ * Configurações centrais do Print Agent
+ *
+ * O agente é propositalmente "burro" — sem tela de configuração.
+ * Tudo que precisa de ajuste fica aqui, mas na prática o padrão
+ * funciona pra maioria dos cenários.
+ *
+ * ── MODIFICÁVEIS ──────────────────────────────────────────────
+ * PORT           → porta do servidor HTTP local
+ * ALLOWED_ORIGINS → domínios do SaaS que podem chamar a API
+ * ──────────────────────────────────────────────────────────────
+ */
+
+module.exports = {
+
+    // Porta fixa do servidor local
+    PORT: 12080,
+
+    // Origens permitidas pelo CORS
+    // Adicione aqui o domínio de produção e de dev do SaaS
+    ALLOWED_ORIGINS: [
+        'http://localhost:5173',       // Vite dev
+        'http://localhost:3000',       // Dev alternativo
+        'https://seu-saas.com',        // ← Substituir pelo domínio real
+    ],
+
+    // Versão exposta no endpoint /status
+    VERSION: '1.0.0',
+
+    // Encoding padrão para impressão RAW (ESC/POS)
+    // latin1 = ISO-8859-1 (padrão de impressoras térmicas)
+    DEFAULT_ENCODING: 'latin1',
+
+    // Tempo máximo (ms) para considerar que uma impressão travou
+    PRINT_TIMEOUT: 15000,
+};
