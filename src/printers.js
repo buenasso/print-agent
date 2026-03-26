@@ -99,7 +99,11 @@ async function listPrinters() {
  * Se não tiver nome amigável, usa o próprio Name.
  */
 async function listPrintersWindows() {
-    const cmd = 'powershell -NoProfile -Command "Get-Printer | Select-Object Name, Comment, ShareName | ConvertTo-Json"';
+    // Usa -EncodedCommand (base64 UTF-16LE) para evitar que o cmd.exe
+    // interprete o pipe "|" como separador de comandos antes de chegar ao PowerShell
+    const script  = 'Get-Printer | Select-Object Name, Comment, ShareName | ConvertTo-Json';
+    const encoded = Buffer.from(script, 'utf16le').toString('base64');
+    const cmd     = `powershell -NoProfile -EncodedCommand ${encoded}`;
     const { stdout } = await execAsync(cmd, { timeout: 5000 });
 
     const parsed = JSON.parse(stdout.trim());
