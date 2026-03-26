@@ -55,9 +55,12 @@ function execAsync(cmd, options = {}) {
     });
 }
 
-/** Escapa aspas simples para uso em shell */
+/** Escapa aspas para uso em shell
+ *  Windows (cmd.exe): escapa aspas duplas (as simples são literais no cmd)
+ *  macOS/Linux:       escapa aspas simples via break-out ('\'' trick)
+ */
 function shellEscape(str) {
-    if (IS_WIN) return str.replace(/'/g, "''");
+    if (IS_WIN) return str.replace(/"/g, '\\"');
     return str.replace(/'/g, "'\\''");
 }
 
@@ -290,7 +293,8 @@ async function printRawWindows(printerName, tmpFile) {
     fs.writeFileSync(tmpScript, RAW_PRINT_SCRIPT, 'utf8');
 
     const safePrinter = shellEscape(printerName);
-    const cmd = `powershell -NoProfile -ExecutionPolicy Bypass -File "${tmpScript}" '${safePrinter}' '${tmpFile}'`;
+    // cmd.exe não interpreta aspas simples como delimitadores — usa aspas duplas
+    const cmd = `powershell -NoProfile -ExecutionPolicy Bypass -File "${tmpScript}" "${safePrinter}" "${tmpFile}"`;
 
     const { stdout, stderr } = await execAsync(cmd);
     const success = stdout.trim().toLowerCase() === 'true';
