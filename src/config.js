@@ -20,9 +20,9 @@ module.exports = {
     // Origens permitidas pelo CORS
     // Adicione aqui o domínio de produção e de dev do SaaS
     ALLOWED_ORIGINS: [
-        'http://localhost:5173',       // Vite dev
-        'http://localhost:3000',       // Dev alternativo
-        'https://seu-saas.com',        // ← Substituir pelo domínio real
+        'http://localhost:5173',                // Vite dev
+        'http://localhost:3000',                // Dev alternativo
+        'https://portal.distritopizza.com.br',  // Produção
     ],
 
     // Versão exposta no endpoint /status

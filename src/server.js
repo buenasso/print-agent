@@ -25,6 +25,30 @@ const app = express();
 // MIDDLEWARES
 // ============================================
 
+/**
+ * Private Network Access (PNA) — Chrome 104+
+ *
+ * Navegadores modernos bloqueiam requests de sites públicos (HTTPS)
+ * para endereços privados (localhost, 127.0.0.1, rede local).
+ *
+ * O Chrome envia um preflight OPTIONS com o header:
+ *   Access-Control-Request-Private-Network: true
+ *
+ * E espera receber:
+ *   Access-Control-Allow-Private-Network: true
+ *
+ * DEVE rodar ANTES do CORS — o cors middleware responde ao OPTIONS
+ * e precisamos que o header PNA já esteja no response.
+ *
+ * Ref: https://developer.chrome.com/blog/private-network-access-preflight
+ */
+app.use((req, res, next) => {
+    if (req.headers['access-control-request-private-network']) {
+        res.setHeader('Access-Control-Allow-Private-Network', 'true');
+    }
+    next();
+});
+
 // CORS — só permite origens do SaaS
 app.use(cors({
     origin: (origin, callback) => {
@@ -38,7 +62,7 @@ app.use(cors({
             callback(new Error('Origem não permitida'));
         }
     },
-    methods: ['GET', 'POST'],
+    methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type'],
 }));
 
