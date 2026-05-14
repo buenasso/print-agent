@@ -15,7 +15,7 @@
  */
 
 const express = require('express');
-const cors    = require('cors');
+const cors = require('cors');
 const { PORT, ALLOWED_ORIGINS, VERSION } = require('./config');
 const { listPrinters, printRaw, printPdf } = require('./printers');
 
@@ -49,13 +49,13 @@ app.use((req, res, next) => {
     next();
 });
 
-// CORS — só permite origens do SaaS
+// CORS — só permite origens do SaaS e extensões locais
 app.use(cors({
     origin: (origin, callback) => {
         // Permite requests sem origin (ex: curl, Postman em dev)
         if (!origin) return callback(null, true);
 
-        if (ALLOWED_ORIGINS.includes(origin)) {
+        if (ALLOWED_ORIGINS.includes(origin) || origin.startsWith('chrome-extension://')) {
             callback(null, true);
         } else {
             console.warn('[Server] Origem bloqueada pelo CORS:', origin);
@@ -80,9 +80,9 @@ app.use(express.json({ limit: '50mb' }));
  */
 app.get('/status', (req, res) => {
     res.json({
-        status:  'online',
+        status: 'online',
         version: VERSION,
-        agent:   'PrintAgent',
+        agent: 'PrintAgent',
     });
 });
 

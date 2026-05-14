@@ -1,0 +1,54 @@
+name: Build instaladores
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-mac:
+    name: DMG (macOS)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Build DMG
+        run: npm run build:mac
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: Print-Agent-mac
+          path: dist/*.dmg
+          retention-days: 30
+
+  build-win:
+    name: EXE (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Build EXE
+        run: npm run build:win
+
+      - name: Upload EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: Print-Agent-win
+          path: dist/*.exe
+          retention-days: 30
