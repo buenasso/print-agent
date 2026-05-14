@@ -26,7 +26,7 @@ module.exports = {
     ],
 
     // Versão exposta no endpoint /status
-    VERSION: '1.0.0',
+    VERSION: '1.2.0',
 
     // Encoding padrão para impressão RAW (ESC/POS)
     // latin1 = ISO-8859-1 (padrão de impressoras térmicas)
