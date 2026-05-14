@@ -45,11 +45,7 @@
     "mac": {
       "target": "dmg",
       "icon": "assets/icon.png",
-      "category": "public.app-category.utilities",
-      "arch": [
-        "x64",
-        "arm64"
-      ]
+      "category": "public.app-category.utilities"
     },
     "nsis": {
       "oneClick": true,
