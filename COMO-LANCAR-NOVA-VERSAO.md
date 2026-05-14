@@ -86,6 +86,19 @@ Quando o build terminar:
 
 ---
 
+## Instalando no Mac — erro "danificado e não pode ser aberto"
+
+O app não tem assinatura digital da Apple (requer conta de desenvolvedor paga). Para uso interno, basta assinar localmente com dois comandos no Terminal após instalar:
+
+```bash
+xattr -cr "/Applications/Agente de Impressão - Operação Fácil.app"
+codesign --force --deep --sign - "/Applications/Agente de Impressão - Operação Fácil.app"
+```
+
+Depois abra normalmente. Só precisa fazer isso uma vez por instalação.
+
+---
+
 ## Resumo rápido (para as próximas vezes)
 
 ```bash

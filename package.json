@@ -1,6 +1,6 @@
 {
   "name": "print-agent",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Agente local de impressão — ponte silenciosa entre o SaaS e as impressoras do sistema",
   "main": "src/main.js",
   "scripts": {
@@ -45,7 +45,11 @@
     "mac": {
       "target": "dmg",
       "icon": "assets/icon.png",
-      "category": "public.app-category.utilities"
+      "category": "public.app-category.utilities",
+      "arch": [
+        "x64",
+        "arm64"
+      ]
     },
     "nsis": {
       "oneClick": true,
