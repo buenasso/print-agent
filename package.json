@@ -22,7 +22,7 @@
     "express": "^4.21.0"
   },
   "devDependencies": {
-    "electron": "^33.0.0",
+    "electron": "^42.0.1",
     "electron-builder": "^25.1.8"
   },
   "optionalDependencies": {
@@ -30,7 +30,7 @@
   },
   "build": {
     "appId": "com.operacaofacil.printagent",
-    "productName": "Agente de Impressão - Operação Fácil",
+    "productName": "OF Print Agent",
     "directories": {
       "output": "dist"
     },
