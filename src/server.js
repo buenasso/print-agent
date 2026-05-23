@@ -17,7 +17,7 @@
 const express = require('express');
 const cors = require('cors');
 const { PORT, ALLOWED_ORIGINS, VERSION } = require('./config');
-const { listPrinters, printRaw, printPdf } = require('./printers');
+const { listPrinters, printRaw, printPdf, printHtml } = require('./printers');
 
 const app = express();
 
@@ -174,6 +174,41 @@ app.post('/print/pdf', async (req, res) => {
         }
     } catch (err) {
         console.error('[Server] Erro em /print/pdf:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+/**
+ * POST /print/html
+ * Renderiza HTML via Electron Chromium e envia como PDF para a impressora.
+ *
+ * Body esperado:
+ * {
+ *   "printer":   "TSC_Label_4xx",
+ *   "html":      "<!DOCTYPE html>...",
+ *   "width_mm":  100,
+ *   "height_mm": 50
+ * }
+ */
+app.post('/print/html', async (req, res) => {
+    const { printer, html, width_mm, height_mm } = req.body;
+
+    if (!printer || typeof printer !== 'string') {
+        return res.status(400).json({ error: 'Campo "printer" é obrigatório (string)' });
+    }
+    if (!html || typeof html !== 'string') {
+        return res.status(400).json({ error: 'Campo "html" é obrigatório (string)' });
+    }
+
+    try {
+        const ok = await printHtml(printer, html, width_mm || 100, height_mm || 50);
+        if (ok) {
+            res.json({ success: true, message: 'Etiqueta enviada para impressão' });
+        } else {
+            res.status(500).json({ success: false, error: 'Falha ao renderizar ou imprimir etiqueta' });
+        }
+    } catch (err) {
+        console.error('[Server] Erro em /print/html:', err);
         res.status(500).json({ success: false, error: err.message });
     }
 });

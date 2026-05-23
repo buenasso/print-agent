@@ -407,6 +407,60 @@ async function printPdfMac(printerName, tmpFile, options) {
 }
 
 // ============================================
+// IMPRESSÃO HTML (via Electron webContents.printToPDF)
+// ============================================
+
+/**
+ * Renderiza HTML via Electron webContents.printToPDF() e envia para a impressora.
+ * Usa Chromium headless — máxima qualidade, respeita CSS @page e label_config.
+ *
+ * @param {string} printerName
+ * @param {string} html       — documento HTML completo
+ * @param {number} widthMm    — largura da etiqueta em mm
+ * @param {number} heightMm   — altura da etiqueta em mm
+ * @returns {Promise<boolean>}
+ */
+async function printHtml(printerName, html, widthMm, heightMm) {
+    const { BrowserWindow } = require('electron');
+
+    const win = new BrowserWindow({
+        show: false,
+        width:  Math.round(widthMm  * 4),
+        height: Math.round(heightMm * 5),
+        webPreferences: { nodeIntegration: false, contextIsolation: true },
+    });
+
+    const tmpFile = path.join(os.tmpdir(), `print-agent-${Date.now()}.pdf`);
+
+    try {
+        const dataUrl = `data:text/html;base64,${Buffer.from(html).toString('base64')}`;
+        await win.loadURL(dataUrl);
+
+        const pdfBuffer = await win.webContents.printToPDF({
+            printBackground: true,
+            pageSize: {
+                width:  Math.round(widthMm  * 1000),
+                height: Math.round(heightMm * 1000),
+            },
+            margins: { marginType: 'none' },
+        });
+
+        fs.writeFileSync(tmpFile, pdfBuffer);
+
+        if (IS_WIN) return await printPdfWindows(printerName, tmpFile, {});
+        if (IS_MAC) return await printPdfMac(printerName, tmpFile, {});
+        console.warn('[Printers] SO não suportado para HTML print');
+        return false;
+    } catch (err) {
+        console.error('[Printers] Erro HTML print:', err.message);
+        return false;
+    } finally {
+        win.close();
+        try { fs.unlinkSync(tmpFile); } catch (_) {}
+    }
+}
+
+// ============================================
 // EXPORTS
 // ============================================
 
@@ -414,4 +468,5 @@ module.exports = {
     listPrinters,
     printRaw,
     printPdf,
+    printHtml,
 };

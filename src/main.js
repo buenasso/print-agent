@@ -45,9 +45,6 @@ if (process.platform === 'darwin') {
     app.dock?.hide();
 }
 
-// Desabilita aceleração de hardware (não precisamos, é só tray)
-app.disableHardwareAcceleration();
-
 // ============================================
 // AUTO-START COM O SISTEMA
 // ============================================
