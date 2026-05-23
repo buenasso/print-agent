@@ -1,6 +1,6 @@
 {
   "name": "print-agent",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "Agente local de impressão — ponte silenciosa entre o SaaS e as impressoras do sistema",
   "main": "src/main.js",
   "scripts": {
