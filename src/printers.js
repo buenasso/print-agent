@@ -94,25 +94,19 @@ async function listPrinters() {
 }
 
 /**
- * Windows: lista via WMI (Win32_Printer) — disponível em qualquer Windows
- * sem precisar importar o módulo PrintManagement (exigido pelo Get-Printer).
- *
+ * Windows: lista via PowerShell Get-Printer
  * Retorna Name (identificador) e Comment ou ShareName como displayName.
+ * Se não tiver nome amigável, usa o próprio Name.
  */
 async function listPrintersWindows() {
-    // Win32_Printer via WMI — funciona sem PrintManagement module
-    const script  = 'Get-WmiObject -Class Win32_Printer | Select-Object Name, Comment, ShareName | ConvertTo-Json -Compress';
+    // Usa -EncodedCommand (base64 UTF-16LE) para evitar que o cmd.exe
+    // interprete o pipe "|" como separador de comandos antes de chegar ao PowerShell
+    const script  = 'Get-Printer | Select-Object Name, Comment, ShareName | ConvertTo-Json';
     const encoded = Buffer.from(script, 'utf16le').toString('base64');
     const cmd     = `powershell -NoProfile -EncodedCommand ${encoded}`;
     const { stdout } = await execAsync(cmd, { timeout: 5000 });
 
-    const raw = stdout.trim();
-    if (!raw) {
-        console.warn('[Printers] Win32_Printer retornou vazio — nenhuma impressora encontrada');
-        return [];
-    }
-
-    const parsed = JSON.parse(raw);
+    const parsed = JSON.parse(stdout.trim());
     // PowerShell retorna objeto se só tem 1, array se tem vários
     const items = Array.isArray(parsed) ? parsed : [parsed];
 
@@ -123,26 +117,21 @@ async function listPrintersWindows() {
 }
 
 /**
- * macOS: lista via lpstat -p (nomes das filas) + lpoptions (nome amigável)
+ * macOS: lista via lpstat -a (nomes das filas) + lpoptions (nome amigável)
  *
- * Usa -p em vez de -a para listar TODAS as impressoras instaladas,
- * incluindo as que estão paradas ou com "aceitar solicitações" desativado.
- * (-a só mostra impressoras aceitando requests — some quando a fila é pausada)
- *
+ * O lpstat retorna o queue name (ex: "192_168_1_100").
  * O lpoptions retorna o campo printer-info com o nome amigável
  * (ex: "EPSON TM-T20X") definido no painel Impressoras do macOS.
  *
  * Se printer-info não existir, usa o queue name como fallback.
  */
 async function listPrintersMac() {
-    const { stdout } = await execAsync('lpstat -p', { timeout: 5000 });
+    const { stdout } = await execAsync('lpstat -a', { timeout: 5000 });
 
     if (!stdout.trim()) return [];
 
-    // lpstat -p: cada linha começa com "printer QUEUE_NAME is ..."
     const queueNames = stdout.trim().split('\n')
-        .filter(line => /^printer\s/.test(line))
-        .map(line => line.trim().split(/\s+/)[1])
+        .map(line => line.split(/\s+/)[0])
         .filter(Boolean);
 
     // Busca o nome amigável de cada fila via lpoptions
@@ -422,13 +411,14 @@ async function printPdfMac(printerName, tmpFile, options) {
 // ============================================
 
 /**
- * Renderiza HTML via Electron webContents.printToPDF() e envia para a impressora.
- * Usa Chromium headless — máxima qualidade, respeita CSS @page e label_config.
+ * Renderiza HTML via Electron webContents.print() e envia direto para a impressora.
+ * Usa webContents.print() em vez de printToPDF para compatibilidade com
+ * disableHardwareAcceleration() — não gera arquivo temporário.
  *
- * @param {string} printerName
- * @param {string} html       — documento HTML completo
- * @param {number} widthMm    — largura da etiqueta em mm
- * @param {number} heightMm   — altura da etiqueta em mm
+ * @param {string} printerName — nome do sistema (campo `name` do listPrinters)
+ * @param {string} html        — documento HTML completo
+ * @param {number} widthMm     — largura da etiqueta em mm
+ * @param {number} heightMm    — altura da etiqueta em mm
  * @returns {Promise<boolean>}
  */
 async function printHtml(printerName, html, widthMm, heightMm) {
@@ -441,33 +431,36 @@ async function printHtml(printerName, html, widthMm, heightMm) {
         webPreferences: { nodeIntegration: false, contextIsolation: true },
     });
 
-    const tmpFile = path.join(os.tmpdir(), `print-agent-${Date.now()}.pdf`);
-
     try {
         const dataUrl = `data:text/html;base64,${Buffer.from(html).toString('base64')}`;
         await win.loadURL(dataUrl);
 
-        const pdfBuffer = await win.webContents.printToPDF({
-            printBackground: true,
-            pageSize: {
-                width:  Math.round(widthMm  * 1000),
-                height: Math.round(heightMm * 1000),
-            },
-            margins: { marginType: 'none' },
+        const success = await new Promise((resolve) => {
+            win.webContents.print(
+                {
+                    silent:          true,
+                    printBackground: true,
+                    deviceName:      printerName,
+                    pageSize: {
+                        width:  Math.round(widthMm  * 1000),
+                        height: Math.round(heightMm * 1000),
+                    },
+                    margins: { marginType: 'none' },
+                },
+                (ok, reason) => {
+                    if (!ok) console.error('[Printers] Falha ao imprimir HTML:', reason);
+                    else     console.log('[Printers] HTML label enviado para:', printerName);
+                    resolve(ok);
+                }
+            );
         });
 
-        fs.writeFileSync(tmpFile, pdfBuffer);
-
-        if (IS_WIN) return await printPdfWindows(printerName, tmpFile, {});
-        if (IS_MAC) return await printPdfMac(printerName, tmpFile, {});
-        console.warn('[Printers] SO não suportado para HTML print');
-        return false;
+        return success;
     } catch (err) {
         console.error('[Printers] Erro HTML print:', err.message);
         return false;
     } finally {
-        win.close();
-        try { fs.unlinkSync(tmpFile); } catch (_) {}
+        win.destroy();
     }
 }
 
