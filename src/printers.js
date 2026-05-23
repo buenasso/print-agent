@@ -94,25 +94,37 @@ async function listPrinters() {
 }
 
 /**
- * Windows: lista via PowerShell Get-Printer
- * Retorna Name (identificador) e Comment ou ShareName como displayName.
- * Se não tiver nome amigável, usa o próprio Name.
+ * Windows: lista via Electron webContents.getPrintersAsync()
+ *
+ * API nativa do Electron — sem spawn de processo externo.
+ * O exec('powershell Get-Printer') fica instável após a primeira chamada
+ * em alguns ambientes Windows (segundo exec retorna vazio).
+ * getPrintersAsync() consulta o spooler diretamente via Chromium, sem esse problema.
+ *
+ * Usa uma BrowserWindow oculta persistente para ter acesso ao webContents.
  */
+let _printerHelperWin = null;
+
+function _getPrinterHelperWindow() {
+    const { BrowserWindow } = require('electron');
+    if (!_printerHelperWin || _printerHelperWin.isDestroyed()) {
+        _printerHelperWin = new BrowserWindow({
+            show:        false,
+            skipTaskbar: true,
+            width:       1,
+            height:      1,
+            webPreferences: { nodeIntegration: false, contextIsolation: true },
+        });
+    }
+    return _printerHelperWin;
+}
+
 async function listPrintersWindows() {
-    // Usa -EncodedCommand (base64 UTF-16LE) para evitar que o cmd.exe
-    // interprete o pipe "|" como separador de comandos antes de chegar ao PowerShell
-    const script  = 'Get-Printer | Select-Object Name, Comment, ShareName | ConvertTo-Json';
-    const encoded = Buffer.from(script, 'utf16le').toString('base64');
-    const cmd     = `powershell -NoProfile -EncodedCommand ${encoded}`;
-    const { stdout } = await execAsync(cmd, { timeout: 5000 });
-
-    const parsed = JSON.parse(stdout.trim());
-    // PowerShell retorna objeto se só tem 1, array se tem vários
-    const items = Array.isArray(parsed) ? parsed : [parsed];
-
-    return items.filter(Boolean).map(p => ({
-        name:        p.Name,
-        displayName: p.Comment || p.ShareName || p.Name,
+    const win = _getPrinterHelperWindow();
+    const printers = await win.webContents.getPrintersAsync();
+    return printers.map(p => ({
+        name:        p.name,
+        displayName: p.description || p.name,
     }));
 }
 
