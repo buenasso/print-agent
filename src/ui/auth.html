@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'unsafe-inline'; script-src 'self' 'unsafe-inline';">
+  <title>OF Print Agent</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: #f0f0f2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      -webkit-app-region: drag;
+      user-select: none;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 36px 32px 28px;
+      width: 360px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.06);
+      -webkit-app-region: no-drag;
+    }
+
+    /* ── Header ── */
+    .header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    .header-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 12px;
+      margin-bottom: 12px;
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .header h1 {
+      font-size: 18px;
+      font-weight: 700;
+      color: #111;
+      letter-spacing: -0.3px;
+    }
+    .header p {
+      font-size: 13px;
+      color: #888;
+      margin-top: 4px;
+    }
+
+    /* ── Form ── */
+    .field { margin-bottom: 14px; }
+
+    label {
+      display: block;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: #555;
+      margin-bottom: 6px;
+      letter-spacing: 0.1px;
+    }
+
+    input[type="email"],
+    input[type="password"] {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1.5px solid #e2e2e4;
+      border-radius: 8px;
+      font-size: 14px;
+      color: #111;
+      background: #fafafa;
+      outline: none;
+      transition: border-color 0.15s, background 0.15s;
+      -webkit-app-region: no-drag;
+    }
+
+    input:focus {
+      border-color: #222;
+      background: #fff;
+    }
+
+    /* ── Button ── */
+    .btn-primary {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 11px;
+      background: #111;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, opacity 0.15s;
+      margin-top: 4px;
+    }
+    .btn-primary:hover:not(:disabled) { background: #333; }
+    .btn-primary:disabled { opacity: 0.45; cursor: default; }
+
+    /* ── Error ── */
+    .error-msg {
+      color: #c0392b;
+      font-size: 12.5px;
+      text-align: center;
+      min-height: 18px;
+      margin-top: 10px;
+    }
+
+    /* ── Spinner ── */
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255,255,255,0.35);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.65s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Store list ── */
+    .stores-header h2 {
+      font-size: 16px;
+      font-weight: 700;
+      color: #111;
+      letter-spacing: -0.2px;
+    }
+    .stores-header p {
+      font-size: 12.5px;
+      color: #888;
+      margin-top: 4px;
+      margin-bottom: 16px;
+    }
+
+    .store-list {
+      max-height: 296px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: #ddd transparent;
+    }
+    .store-list::-webkit-scrollbar { width: 4px; }
+    .store-list::-webkit-scrollbar-thumb { background: #ddd; border-radius: 4px; }
+
+    .store-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.1s;
+      margin-bottom: 2px;
+    }
+    .store-item:hover { background: #f4f4f6; }
+    .store-item:active { background: #ebebed; }
+
+    .store-icon {
+      width: 36px;
+      height: 36px;
+      background: #f0f0f2;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .store-info { flex: 1; min-width: 0; }
+    .store-name {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: #111;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .store-group {
+      font-size: 12px;
+      color: #999;
+      margin-top: 1px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ── Views ── */
+    #view-login  { display: none; }
+    #view-stores { display: none; }
+  </style>
+</head>
+<body>
+
+  <!-- ── LOGIN ── -->
+  <div id="view-login" class="card">
+    <div class="header">
+      <img class="header-icon" src="../../assets/icon.png" alt="" onerror="this.style.display='none'">
+      <h1>Print Agent</h1>
+      <p>Entre com a conta do portal</p>
+    </div>
+
+    <form id="login-form">
+      <div class="field">
+        <label for="email">Email</label>
+        <input id="email" type="email" placeholder="seu@email.com" autocomplete="username" required>
+      </div>
+      <div class="field">
+        <label for="password">Senha</label>
+        <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" required>
+      </div>
+      <button class="btn-primary" type="submit" id="login-btn">Entrar</button>
+    </form>
+
+    <div class="error-msg" id="login-error"></div>
+  </div>
+
+  <!-- ── SELEÇÃO DE LOJA ── -->
+  <div id="view-stores" class="card">
+    <div class="stores-header">
+      <h2>Selecione a loja</h2>
+      <p>O agente vai escutar a fila de impressão desta loja</p>
+    </div>
+    <div class="store-list" id="store-list"></div>
+  </div>
+
+  <script>
+    'use strict';
+
+    let _stores = [];
+
+    // Recebe o estado inicial do processo principal
+    window.ipc.onInit(({ step, stores }) => {
+      if (step === 'stores') {
+        _stores = stores || [];
+        _showStores();
+      } else {
+        document.getElementById('view-login').style.display = 'block';
+        document.getElementById('email').focus();
+      }
+    });
+
+    // ── Login ──────────────────────────────────────────────────────────────
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const email    = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const btn      = document.getElementById('login-btn');
+      const errEl    = document.getElementById('login-error');
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>Entrando...';
+      errEl.textContent = '';
+
+      const result = await window.ipc.login({ email, password });
+
+      if (result.ok) {
+        _stores = result.stores;
+        if (_stores.length === 1) {
+          // Loja única → seleciona automaticamente
+          await window.ipc.selectStore(_stores[0]);
+        } else {
+          _showStores();
+        }
+      } else {
+        errEl.textContent = result.error;
+        btn.disabled = false;
+        btn.textContent = 'Entrar';
+      }
+    });
+
+    // ── Seleção de loja ────────────────────────────────────────────────────
+    function _showStores() {
+      document.getElementById('view-login').style.display  = 'none';
+      document.getElementById('view-stores').style.display = 'block';
+
+      const list = document.getElementById('store-list');
+      list.innerHTML = _stores.map((s, i) => `
+        <div class="store-item" onclick="_selectStore(${i})">
+          <div class="store-icon">🏪</div>
+          <div class="store-info">
+            <div class="store-name">${_esc(s.storeName)}</div>
+            <div class="store-group">${_esc(s.groupName)}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function _selectStore(idx) {
+      const items = document.querySelectorAll('.store-item');
+      if (items[idx]) {
+        items[idx].style.opacity = '0.5';
+        items[idx].style.pointerEvents = 'none';
+      }
+      await window.ipc.selectStore(_stores[idx]);
+    }
+
+    function _esc(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+  </script>
+</body>
+</html>

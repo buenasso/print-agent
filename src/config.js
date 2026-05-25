@@ -14,6 +14,19 @@
 
 module.exports = {
 
+    // ── Firebase ────────────────────────────────────────────────────────────
+    // Copie estes valores do Firebase Console → Configurações do projeto →
+    // Seus apps → SDK setup and configuration.
+    // Estes valores são públicos (segurança vem das Firestore Rules).
+    FIREBASE_CONFIG: {
+        apiKey: "AIzaSyBofXL8ZtwnPFcEKcSY09tSuleubiBL_KQ",
+        authDomain: "operacao-facil.firebaseapp.com",
+        projectId: "operacao-facil",
+        storageBucket: "operacao-facil.firebasestorage.app",
+        messagingSenderId: "161013396280",
+        appId: "1:161013396280:web:44a1e13aef73ee56e007cd"
+    },
+
     // Porta fixa do servidor local
     PORT: 12080,
 
