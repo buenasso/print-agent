@@ -1,0 +1,27 @@
+{
+  "name": "@operacaofacil/print-agent-linux",
+  "version": "1.3.0",
+  "description": "Agente de impressão local para Linux — daemon headless com suporte a ESC/POS, PDF e etiquetas HTML",
+  "main": "src/daemon.js",
+  "bin": {
+    "print-agent": "./bin/print-agent"
+  },
+  "scripts": {
+    "start": "node src/daemon.js",
+    "dev": "node src/daemon.js"
+  },
+  "keywords": ["print", "agent", "escpos", "thermal", "linux", "cups"],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@inquirer/prompts": "^7.0.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "firebase": "^10.14.0",
+    "puppeteer-core": "^23.0.0",
+    "winston": "^3.14.0",
+    "winston-daily-rotate-file": "^5.0.0"
+  }
+}

@@ -1,0 +1,228 @@
+#!/usr/bin/env node
+'use strict';
+
+/**
+ * print-agent — CLI entrypoint
+ *
+ * Subcomandos:
+ *   login      → autentica e seleciona loja
+ *   store      → troca a loja sem novo login
+ *   start      → inicia o daemon em foreground
+ *   install    → instala serviço systemd (user)
+ *   uninstall  → remove serviço systemd
+ *   status     → exibe estado atual
+ *   logs       → tail dos logs
+ *   logout     → remove token local
+ */
+
+const path = require('path');
+const fs   = require('fs');
+const { execSync, spawn } = require('child_process');
+
+const cmd = process.argv[2];
+
+switch (cmd) {
+
+    case 'login':
+        require(path.join(__dirname, '../src/auth')).login();
+        break;
+
+    case 'store':
+        require(path.join(__dirname, '../src/auth')).selectStore();
+        break;
+
+    case 'start':
+        require(path.join(__dirname, '../src/daemon')).start();
+        break;
+
+    case 'status':
+        _status();
+        break;
+
+    case 'install':
+        _install();
+        break;
+
+    case 'uninstall':
+        _uninstall();
+        break;
+
+    case 'logs':
+        _logs();
+        break;
+
+    case 'logout':
+        require(path.join(__dirname, '../src/auth')).logout();
+        break;
+
+    default:
+        _help();
+        break;
+}
+
+// ── Subcomandos ───────────────────────────────────────────────────────────────
+
+function _status() {
+    const state = require(path.join(__dirname, '../src/state'));
+
+    console.log('\n  OF Print Agent — Status\n');
+
+    const auth  = state.getAuth();
+    const store = state.getStore();
+
+    if (!auth) {
+        console.log('  Autenticação: ✗ não autenticado');
+        console.log('  → Rode: print-agent login\n');
+        return;
+    }
+
+    console.log(`  Usuário:      ${auth.email}`);
+
+    if (store) {
+        console.log(`  Loja:         ${store.storeName} (${store.groupName})`);
+        console.log(`  Store ID:     ${store.storeId}`);
+    } else {
+        console.log('  Loja:         ✗ não selecionada');
+        console.log('  → Rode: print-agent store');
+    }
+
+    // Verifica se o serviço systemd está rodando
+    try {
+        const out = execSync('systemctl --user is-active print-agent 2>/dev/null', { encoding: 'utf8' }).trim();
+        console.log(`  Serviço:      ${out === 'active' ? '✓ ativo' : out}`);
+    } catch {
+        console.log('  Serviço:      ✗ inativo (rode: print-agent install)');
+    }
+
+    // Verifica a API local
+    try {
+        const { PORT } = require(path.join(__dirname, '../src/config'));
+        execSync(`curl -sf http://127.0.0.1:${PORT}/status`, { timeout: 2000 });
+        console.log(`  API local:    ✓ http://127.0.0.1:${PORT}`);
+    } catch {
+        console.log('  API local:    ✗ não responde');
+    }
+
+    console.log();
+}
+
+function _install() {
+    const serviceContent = _buildServiceUnit();
+    const systemdDir  = path.join(process.env.HOME, '.config', 'systemd', 'user');
+    const serviceFile = path.join(systemdDir, 'print-agent.service');
+
+    fs.mkdirSync(systemdDir, { recursive: true });
+    fs.writeFileSync(serviceFile, serviceContent, 'utf8');
+
+    console.log('\n  Instalando serviço systemd...\n');
+
+    try {
+        execSync('systemctl --user daemon-reload');
+        execSync('systemctl --user enable print-agent');
+        execSync('systemctl --user start print-agent');
+        console.log('  ✓ Serviço instalado e iniciado.');
+        console.log('  ✓ Habilitado para iniciar automaticamente no boot.');
+        console.log('\n  Para acompanhar os logs:');
+        console.log('  journalctl --user -u print-agent -f\n');
+    } catch (err) {
+        console.error(`  ✗ Erro ao instalar serviço: ${err.message}`);
+        console.error(`  Arquivo gerado em: ${serviceFile}`);
+        console.error('  Verifique se o systemd está disponível neste ambiente.\n');
+        process.exit(1);
+    }
+
+    _checkSshSecurity();
+}
+
+function _uninstall() {
+    console.log('\n  Removendo serviço systemd...\n');
+    try {
+        execSync('systemctl --user stop print-agent 2>/dev/null || true');
+        execSync('systemctl --user disable print-agent 2>/dev/null || true');
+
+        const serviceFile = path.join(process.env.HOME, '.config', 'systemd', 'user', 'print-agent.service');
+        if (fs.existsSync(serviceFile)) fs.unlinkSync(serviceFile);
+
+        execSync('systemctl --user daemon-reload');
+        console.log('  ✓ Serviço removido com sucesso.\n');
+    } catch (err) {
+        console.error(`  ✗ Erro ao remover serviço: ${err.message}\n`);
+    }
+}
+
+function _logs() {
+    const { LOG_DIR } = require(path.join(__dirname, '../src/config'));
+    const today = new Date().toISOString().slice(0, 10);
+    const logFile = path.join(LOG_DIR, `combined-${today}.log`);
+
+    if (!fs.existsSync(logFile)) {
+        console.log(`\n  Nenhum log para hoje em: ${logFile}\n`);
+        console.log('  Alternativa: journalctl --user -u print-agent -f\n');
+        return;
+    }
+
+    const tail = spawn('tail', ['-f', '-n', '50', logFile], { stdio: 'inherit' });
+    tail.on('error', () => {
+        console.error('  ✗ Erro ao abrir logs. Verifique: ' + logFile);
+    });
+}
+
+function _buildServiceUnit() {
+    const nodePath  = process.execPath;
+    const agentPath = path.resolve(__dirname, 'print-agent');
+
+    return `[Unit]
+Description=OF Print Agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=${nodePath} ${agentPath} start
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=default.target
+`;
+}
+
+function _checkSshSecurity() {
+    try {
+        const sshConfig = fs.readFileSync('/etc/ssh/sshd_config', 'utf8');
+        const hasPasswordAuth = /^\s*PasswordAuthentication\s+yes/im.test(sshConfig);
+        const noExplicitNo    = !/^\s*PasswordAuthentication\s+no/im.test(sshConfig);
+
+        if (hasPasswordAuth || noExplicitNo) {
+            console.log('  ⚠  Aviso de segurança SSH:');
+            console.log('     Login por senha está habilitado neste servidor.');
+            console.log('     Recomendamos desabilitar e usar apenas chave SSH:');
+            console.log('     → Edite /etc/ssh/sshd_config');
+            console.log('     → Defina: PasswordAuthentication no');
+            console.log('     → Reinicie: sudo systemctl restart sshd\n');
+        }
+    } catch {
+        // Sem acesso ao sshd_config — ignora silenciosamente
+    }
+}
+
+function _help() {
+    console.log(`
+  OF Print Agent v${require(path.join(__dirname, '../src/config')).VERSION} — Linux
+
+  Uso: print-agent <comando>
+
+  Comandos:
+    login      Autenticar e selecionar loja
+    store      Trocar a loja ativa (sem novo login)
+    start      Iniciar daemon em foreground
+    install    Instalar como serviço systemd
+    uninstall  Remover serviço systemd
+    status     Exibir estado atual
+    logs       Acompanhar logs em tempo real
+    logout     Encerrar sessão local
+`);
+}
