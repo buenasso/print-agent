@@ -13,7 +13,8 @@ const { getAuth, signInWithEmailAndPassword,
         signOut: fbSignOut, setPersistence,
         inMemoryPersistence, signInWithCustomToken }  = require('firebase/auth');
 const { getFirestore, collection, doc,
-        getDoc, getDocs }                             = require('firebase/firestore');
+        getDoc, getDocs, setDoc,
+        onSnapshot, serverTimestamp }                 = require('firebase/firestore');
 const { FIREBASE_CONFIG }                             = require('./config');
 
 let _app  = null;
@@ -121,6 +122,37 @@ async function fetchUserStores(uid) {
     return stores;
 }
 
+/**
+ * Publica as impressoras locais no documento da loja no Firestore.
+ * Usa merge para não sobrescrever outros campos do documento.
+ */
+async function publishPrinters(groupId, storeId, printers) {
+    _init();
+    const ref = doc(_db, 'groups', groupId, 'stores', storeId);
+    await setDoc(ref, {
+        agent_printers:    printers,
+        agent_last_seen:   serverTimestamp(),
+    }, { merge: true });
+}
+
+/**
+ * Escuta o documento da loja e chama onRefreshRequested sempre que
+ * agent_printers_refresh_requested === true, limpando a flag em seguida.
+ * Retorna a função de unsubscribe.
+ */
+function watchPrintersRefresh(groupId, storeId, onRefreshRequested) {
+    _init();
+    const ref = doc(_db, 'groups', groupId, 'stores', storeId);
+    return onSnapshot(ref, async (snap) => {
+        if (!snap.exists()) return;
+        if (snap.data().agent_printers_refresh_requested !== true) return;
+
+        // Limpa a flag antes de executar para evitar loops
+        await setDoc(ref, { agent_printers_refresh_requested: false }, { merge: true });
+        onRefreshRequested();
+    });
+}
+
 function getFirestoreInstance() {
     _init();
     return _db;
@@ -131,4 +163,8 @@ function getAuthInstance() {
     return _auth;
 }
 
-module.exports = { signIn, restoreSession, signOut, fetchUserStores, getFirestoreInstance, getAuthInstance };
+module.exports = {
+    signIn, restoreSession, signOut, fetchUserStores,
+    publishPrinters, watchPrintersRefresh,
+    getFirestoreInstance, getAuthInstance,
+};

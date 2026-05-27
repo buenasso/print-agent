@@ -9,10 +9,11 @@
  * - Graceful shutdown em SIGTERM/SIGINT
  */
 
-const { restoreSession }   = require('./firebase');
+const { restoreSession, publishPrinters, watchPrintersRefresh } = require('./firebase');
 const queueListener        = require('./queue-listener');
 const { startServer }      = require('./server');
 const { closeBrowser }     = require('./renderer');
+const { listPrinters }     = require('./printers');
 const state                = require('./state');
 const logger               = require('./logger');
 const { VERSION }          = require('./config');
@@ -62,6 +63,23 @@ async function start() {
 
     // Inicia listener da fila
     queueListener.start(groupId, storeId);
+
+    // Publica impressoras locais no Firestore e monitora pedidos de refresh
+    async function _syncPrinters() {
+        try {
+            const printers = await listPrinters();
+            await publishPrinters(groupId, storeId, printers);
+            logger.info(`[Daemon] Impressoras publicadas: ${printers.map(p => p.name).join(', ') || '(nenhuma)'}`);
+        } catch (err) {
+            logger.error(`[Daemon] Erro ao publicar impressoras: ${err.message}`);
+        }
+    }
+
+    await _syncPrinters();
+    watchPrintersRefresh(groupId, storeId, () => {
+        logger.info('[Daemon] Refresh de impressoras solicitado pelo SaaS');
+        _syncPrinters();
+    });
 
     // Health check — reinicia listener se ficar inativo
     _healthTimer = setInterval(() => {
