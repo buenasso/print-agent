@@ -116,7 +116,7 @@ async function _processJob(jobDoc) {
         let success = false;
 
         if (job.type === 'pdf') {
-            success = await printPdf(job.printer_name, job.data);
+            success = await printPdf(job.printer_name, job.data, { copies: job.copies || 1 });
 
         } else if (job.type === 'label') {
             if (job.html) {
@@ -125,6 +125,7 @@ async function _processJob(jobDoc) {
                     job.html,
                     job.width_mm  || 100,
                     job.height_mm || 50,
+                    job.copies    || 1,
                 );
             } else {
                 throw new Error(

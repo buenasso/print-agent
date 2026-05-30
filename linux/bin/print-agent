@@ -24,11 +24,15 @@ const cmd = process.argv[2];
 switch (cmd) {
 
     case 'login':
-        require(path.join(__dirname, '../src/auth')).login();
+        require(path.join(__dirname, '../src/auth')).login()
+            .then(() => process.exit(0))
+            .catch(() => process.exit(1));
         break;
 
     case 'store':
-        require(path.join(__dirname, '../src/auth')).selectStore();
+        require(path.join(__dirname, '../src/auth')).selectStore()
+            .then(() => process.exit(0))
+            .catch(() => process.exit(1));
         break;
 
     case 'start':
@@ -120,6 +124,16 @@ function _install() {
         execSync('systemctl --user daemon-reload');
         execSync('systemctl --user enable print-agent');
         execSync('systemctl --user start print-agent');
+
+        // Permite que o serviço de usuário rode no boot mesmo sem login ativo
+        try {
+            execSync(`sudo loginctl enable-linger ${process.env.USER}`, { stdio: 'inherit' });
+            console.log('  ✓ Linger habilitado (serviço inicia no boot sem login).');
+        } catch {
+            console.log('  ⚠  Não foi possível habilitar linger automaticamente.');
+            console.log(`     Rode manualmente: sudo loginctl enable-linger ${process.env.USER}`);
+        }
+
         console.log('  ✓ Serviço instalado e iniciado.');
         console.log('  ✓ Habilitado para iniciar automaticamente no boot.');
         console.log('\n  Para acompanhar os logs:');
@@ -199,10 +213,17 @@ function _checkSshSecurity() {
         if (hasPasswordAuth || noExplicitNo) {
             console.log('  ⚠  Aviso de segurança SSH:');
             console.log('     Login por senha está habilitado neste servidor.');
-            console.log('     Recomendamos desabilitar e usar apenas chave SSH:');
-            console.log('     → Edite /etc/ssh/sshd_config');
-            console.log('     → Defina: PasswordAuthentication no');
-            console.log('     → Reinicie: sudo systemctl restart sshd\n');
+            console.log('     Para maior segurança, configure acesso por chave SSH:');
+            console.log('');
+            console.log('     1. No computador que acessa este servidor, rode:');
+            console.log('        ssh-copy-id distrito@<ip-do-servidor>');
+            console.log('');
+            console.log('     2. Teste que o acesso por chave funciona (entre sem senha).');
+            console.log('');
+            console.log('     3. Só então desabilite o login por senha:');
+            console.log('        → Edite /etc/ssh/sshd_config');
+            console.log('        → Defina: PasswordAuthentication no');
+            console.log('        → Reinicie: sudo systemctl restart sshd\n');
         }
     } catch {
         // Sem acesso ao sshd_config — ignora silenciosamente

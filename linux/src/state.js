@@ -32,8 +32,8 @@ function getAuth() {
     return _readJson(AUTH_FILE);
 }
 
-function saveAuth({ refreshToken, uid, email }) {
-    _writeJson(AUTH_FILE, { refreshToken, uid, email });
+function saveAuth({ refreshToken, uid, email, password }) {
+    _writeJson(AUTH_FILE, { refreshToken, uid, email, password });
 }
 
 function clearAuth() {

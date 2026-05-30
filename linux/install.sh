@@ -79,7 +79,7 @@ fi
 
 # ── CUPS ──────────────────────────────────────────────────────────────────────
 
-step "3/4 — Verificando CUPS..."
+step "3/5 — Verificando CUPS..."
 
 if command -v lpstat &>/dev/null; then
     ok "CUPS encontrado."
@@ -89,9 +89,21 @@ else
     ok "CUPS instalado."
 fi
 
+# ── Fontes ────────────────────────────────────────────────────────────────────
+
+step "4/5 — Verificando fontes para renderização de etiquetas..."
+
+if fc-list | grep -qi "liberation"; then
+    ok "Liberation fonts encontradas."
+else
+    echo "  Instalando Liberation fonts..."
+    sudo apt-get install -y fonts-liberation &>/dev/null
+    ok "Liberation fonts instaladas."
+fi
+
 # ── Print Agent ───────────────────────────────────────────────────────────────
 
-step "4/4 — Instalando OF Print Agent..."
+step "5/5 — Instalando OF Print Agent..."
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 

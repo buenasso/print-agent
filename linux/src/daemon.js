@@ -3,7 +3,7 @@
  * Loop principal do Print Agent Linux.
  *
  * Responsabilidades:
- * - Restaurar sessão Firebase via refresh token
+ * - Restaurar sessão Firebase via email/senha
  * - Iniciar o queue listener e o servidor Express
  * - Monitorar saúde do listener e reconectar em caso de falha
  * - Graceful shutdown em SIGTERM/SIGINT
@@ -37,7 +37,7 @@ async function start() {
         process.exit(1);
     }
 
-    const { refreshToken, uid, email } = state.getAuth();
+    const { uid, email, password } = state.getAuth();
     const { groupId, storeId, storeName } = state.getStore();
 
     logger.info(`[Daemon] Usuário: ${email}`);
@@ -45,7 +45,7 @@ async function start() {
 
     // Restaura sessão Firebase
     try {
-        await restoreSession(refreshToken);
+        await restoreSession(email, password);
         logger.info('[Daemon] Sessão Firebase restaurada.');
     } catch (err) {
         logger.error(`[Daemon] Falha ao restaurar sessão: ${err.message}`);

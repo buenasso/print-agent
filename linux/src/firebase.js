@@ -11,7 +11,7 @@
 const { initializeApp }                               = require('firebase/app');
 const { getAuth, signInWithEmailAndPassword,
         signOut: fbSignOut, setPersistence,
-        inMemoryPersistence, signInWithCustomToken }  = require('firebase/auth');
+        inMemoryPersistence }                         = require('firebase/auth');
 const { getFirestore, collection, doc,
         getDoc, getDocs, setDoc,
         onSnapshot, serverTimestamp }                 = require('firebase/firestore');
@@ -40,40 +40,14 @@ async function signIn(email, password) {
 }
 
 /**
- * Restaura a sessão a partir do refresh token salvo em disco.
- * Troca o refresh token por um ID token via REST e autentica o SDK.
- * O SDK renova o ID token automaticamente (expira em 1h).
+ * Restaura a sessão usando as credenciais salvas em disco.
+ * Chama signInWithEmailAndPassword diretamente — o SDK gerencia
+ * a renovação do ID token automaticamente a cada hora.
  */
-async function restoreSession(refreshToken) {
+async function restoreSession(email, password) {
     _init();
-
-    const url = `https://securetoken.googleapis.com/v1/token?key=${FIREBASE_CONFIG.apiKey}`;
-    const res = await fetch(url, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ grant_type: 'refresh_token', refresh_token: refreshToken }),
-    });
-
-    if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(`Falha ao renovar sessão Firebase: ${err?.error?.message || res.status}`);
-    }
-
-    const data = await res.json();
-
-    // Autentica o SDK com o ID token obtido
-    await signInWithCustomToken(_auth, data.id_token).catch(async () => {
-        // Fallback: signInWithCustomToken requer token customizado de Admin SDK.
-        // Para ID tokens regulares, usamos updateCurrentUser com credential.
-        // O SDK já gerencia o token internamente após a chamada REST acima,
-        // então apenas verificamos que o auth state foi atualizado.
-        const { GoogleAuthProvider, signInWithCredential } = require('firebase/auth');
-        // Se signInWithCustomToken falhar, o ID token ainda pode ser usado
-        // diretamente pelo SDK via updateProfile — mas na prática o Firebase SDK
-        // v10 gerencia o token automaticamente após fetch bem-sucedido ao endpoint.
-    });
-
-    return _auth.currentUser;
+    const cred = await signInWithEmailAndPassword(_auth, email, password);
+    return cred.user;
 }
 
 async function signOut() {

@@ -120,24 +120,33 @@ async function printPdf(printerName, base64Data, options = {}) {
     }
 }
 
-// ── HTML / Label (via Puppeteer) ──────────────────────────────────────────────
+// ── HTML / Label (via Puppeteer → TSPL) ──────────────────────────────────────
 
-async function printHtml(printerName, html, widthMm, heightMm) {
-    const { renderHtmlToPdf } = require('./renderer');
-    const tmpFile = path.join(os.tmpdir(), `print-agent-label-${Date.now()}.pdf`);
+async function printHtml(printerName, html, widthMm, heightMm, copies = 1) {
+    const { renderHtmlToPng } = require('./renderer');
+    const { pngToTspl }       = require('./tspl');
+
+    const ts      = Date.now();
+    const tmpPng  = path.join(os.tmpdir(), `print-agent-label-${ts}.png`);
+    const tmpTspl = path.join(os.tmpdir(), `print-agent-label-${ts}.tspl`);
 
     try {
-        await renderHtmlToPdf(html, widthMm, heightMm, tmpFile);
+        await renderHtmlToPng(html, widthMm, heightMm, tmpPng);
+
+        const tsplBuf = await pngToTspl(tmpPng, widthMm, heightMm, 3, copies);
+        fs.writeFileSync(tmpTspl, tsplBuf);
 
         const safe = shellEscape(printerName);
-        await execAsync(`lp -d '${safe}' '${tmpFile}'`);
-        logger.info(`[Printers] Label enviada para: ${printerName}`);
+        await execAsync(`lp -d '${safe}' -o raw '${tmpTspl}'`);
+        logger.info(`[Printers] Label enviada para: ${printerName} (TSPL, ${copies}x)`);
         return true;
+
     } catch (err) {
         logger.error(`[Printers] Erro HTML print: ${err.message}`);
         return false;
     } finally {
-        try { fs.unlinkSync(tmpFile); } catch {}
+        try { fs.unlinkSync(tmpPng); } catch {}
+        try { fs.unlinkSync(tmpTspl); } catch {}
     }
 }
 

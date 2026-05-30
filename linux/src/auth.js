@@ -36,11 +36,11 @@ async function login() {
         process.exit(1);
     }
 
-    // Salva refresh token (nunca email/senha)
     state.saveAuth({
         refreshToken: user.stsTokenManager.refreshToken,
         uid:          user.uid,
         email:        user.email,
+        password:     senha,
     });
 
     console.log(`  ✓ Autenticado como ${user.email}\n`);
